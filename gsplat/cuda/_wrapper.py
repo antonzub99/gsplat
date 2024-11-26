@@ -4,7 +4,7 @@ from typing_extensions import Literal
 
 import torch
 from torch import Tensor
-
+from torch.amp import custom_fwd, custom_bwd
 
 def _make_lazy_cuda_func(name: str) -> Callable:
     def call_cuda(*args, **kwargs):
@@ -647,6 +647,7 @@ class _QuatScaleToCovarPreci(torch.autograd.Function):
     """Converts quaternions and scales to covariance and precision matrices."""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32, )
     def forward(
         ctx,
         quats: Tensor,  # [N, 4],
@@ -665,6 +666,7 @@ class _QuatScaleToCovarPreci(torch.autograd.Function):
         return covars, precis
 
     @staticmethod
+    @custom_bwd
     def backward(ctx, v_covars: Tensor, v_precis: Tensor):
         quats, scales = ctx.saved_tensors
         compute_covar = ctx.compute_covar
@@ -688,6 +690,7 @@ class _Proj(torch.autograd.Function):
     """Perspective fully_fused_projection on Gaussians."""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx,
         means: Tensor,  # [C, N, 3]
@@ -716,6 +719,7 @@ class _Proj(torch.autograd.Function):
         return means2d, covars2d
 
     @staticmethod
+    @custom_bwd
     def backward(ctx, v_means2d: Tensor, v_covars2d: Tensor):
         means, covars, Ks = ctx.saved_tensors
         width = ctx.width
@@ -738,6 +742,7 @@ class _WorldToCam(torch.autograd.Function):
     """Transforms Gaussians from world to camera space."""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx,
         means: Tensor,  # [N, 3]
@@ -751,6 +756,7 @@ class _WorldToCam(torch.autograd.Function):
         return means_c, covars_c
 
     @staticmethod
+    @custom_bwd
     def backward(ctx, v_means_c: Tensor, v_covars_c: Tensor):
         means, covars, viewmats = ctx.saved_tensors
         v_means, v_covars, v_viewmats = _make_lazy_cuda_func("world_to_cam_bwd")(
@@ -776,6 +782,7 @@ class _FullyFusedProjection(torch.autograd.Function):
     """Projects Gaussians to 2D."""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx,
         means: Tensor,  # [N, 3]
@@ -829,6 +836,7 @@ class _FullyFusedProjection(torch.autograd.Function):
         return radii, means2d, depths, conics, compensations
 
     @staticmethod
+    @custom_bwd
     def backward(ctx, v_radii, v_means2d, v_depths, v_conics, v_compensations):
         (
             means,
@@ -902,6 +910,7 @@ class _RasterizeToPixels(torch.autograd.Function):
     """Rasterize gaussians"""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx,
         means2d: Tensor,  # [C, N, 2]
@@ -955,6 +964,7 @@ class _RasterizeToPixels(torch.autograd.Function):
         return render_colors, render_alphas
 
     @staticmethod
+    @custom_bwd
     def backward(
         ctx,
         v_render_colors: Tensor,  # [C, H, W, 3]
@@ -1032,6 +1042,7 @@ class _FullyFusedProjectionPacked(torch.autograd.Function):
     """Projects Gaussians to 2D. Return packed tensors."""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx,
         means: Tensor,  # [N, 3]
@@ -1102,6 +1113,7 @@ class _FullyFusedProjectionPacked(torch.autograd.Function):
         return camera_ids, gaussian_ids, radii, means2d, depths, conics, compensations
 
     @staticmethod
+    @custom_bwd
     def backward(
         ctx,
         v_camera_ids,
@@ -1227,6 +1239,7 @@ class _SphericalHarmonics(torch.autograd.Function):
     """Spherical Harmonics"""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx, sh_degree: int, dirs: Tensor, coeffs: Tensor, masks: Tensor
     ) -> Tensor:
@@ -1237,6 +1250,7 @@ class _SphericalHarmonics(torch.autograd.Function):
         return colors
 
     @staticmethod
+    @custom_bwd
     def backward(ctx, v_colors: Tensor):
         dirs, coeffs, masks = ctx.saved_tensors
         sh_degree = ctx.sh_degree
@@ -1365,6 +1379,7 @@ class _FullyFusedProjection2DGS(torch.autograd.Function):
     """Projects Gaussians to 2D."""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx,
         means: Tensor,
@@ -1411,6 +1426,7 @@ class _FullyFusedProjection2DGS(torch.autograd.Function):
         return radii, means2d, depths, ray_transforms, normals
 
     @staticmethod
+    @custom_bwd
     def backward(ctx, v_radii, v_means2d, v_depths, v_ray_transforms, v_normals):
         (
             means,
@@ -1472,6 +1488,7 @@ class _FullyFusedProjectionPacked2DGS(torch.autograd.Function):
     """Projects Gaussians to 2D. Return packed tensors."""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx,
         means: Tensor,  # [N, 3]
@@ -1524,6 +1541,7 @@ class _FullyFusedProjectionPacked2DGS(torch.autograd.Function):
         return camera_ids, gaussian_ids, radii, means2d, depths, ray_transforms, normals
 
     @staticmethod
+    @custom_bwd
     def backward(
         ctx,
         v_camera_ids,
@@ -1829,6 +1847,7 @@ class _RasterizeToPixels2DGS(torch.autograd.Function):
     """Rasterize gaussians 2DGS"""
 
     @staticmethod
+    @custom_fwd(device_type='cuda', cast_inputs=torch.float32)
     def forward(
         ctx,
         means2d: Tensor,
@@ -1903,6 +1922,7 @@ class _RasterizeToPixels2DGS(torch.autograd.Function):
         )
 
     @staticmethod
+    @custom_bwd
     def backward(
         ctx,
         v_render_colors: Tensor,
