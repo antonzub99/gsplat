@@ -666,7 +666,7 @@ class _QuatScaleToCovarPreci(torch.autograd.Function):
         return covars, precis
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(ctx, v_covars: Tensor, v_precis: Tensor):
         quats, scales = ctx.saved_tensors
         compute_covar = ctx.compute_covar
@@ -719,7 +719,7 @@ class _Proj(torch.autograd.Function):
         return means2d, covars2d
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(ctx, v_means2d: Tensor, v_covars2d: Tensor):
         means, covars, Ks = ctx.saved_tensors
         width = ctx.width
@@ -756,7 +756,7 @@ class _WorldToCam(torch.autograd.Function):
         return means_c, covars_c
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(ctx, v_means_c: Tensor, v_covars_c: Tensor):
         means, covars, viewmats = ctx.saved_tensors
         v_means, v_covars, v_viewmats = _make_lazy_cuda_func("world_to_cam_bwd")(
@@ -836,7 +836,7 @@ class _FullyFusedProjection(torch.autograd.Function):
         return radii, means2d, depths, conics, compensations
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(ctx, v_radii, v_means2d, v_depths, v_conics, v_compensations):
         (
             means,
@@ -964,7 +964,7 @@ class _RasterizeToPixels(torch.autograd.Function):
         return render_colors, render_alphas
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(
         ctx,
         v_render_colors: Tensor,  # [C, H, W, 3]
@@ -1113,7 +1113,7 @@ class _FullyFusedProjectionPacked(torch.autograd.Function):
         return camera_ids, gaussian_ids, radii, means2d, depths, conics, compensations
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(
         ctx,
         v_camera_ids,
@@ -1250,7 +1250,7 @@ class _SphericalHarmonics(torch.autograd.Function):
         return colors
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(ctx, v_colors: Tensor):
         dirs, coeffs, masks = ctx.saved_tensors
         sh_degree = ctx.sh_degree
@@ -1426,7 +1426,7 @@ class _FullyFusedProjection2DGS(torch.autograd.Function):
         return radii, means2d, depths, ray_transforms, normals
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(ctx, v_radii, v_means2d, v_depths, v_ray_transforms, v_normals):
         (
             means,
@@ -1541,7 +1541,7 @@ class _FullyFusedProjectionPacked2DGS(torch.autograd.Function):
         return camera_ids, gaussian_ids, radii, means2d, depths, ray_transforms, normals
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(
         ctx,
         v_camera_ids,
@@ -1922,7 +1922,7 @@ class _RasterizeToPixels2DGS(torch.autograd.Function):
         )
 
     @staticmethod
-    @custom_bwd
+    @custom_bwd(device_type='cuda')
     def backward(
         ctx,
         v_render_colors: Tensor,
